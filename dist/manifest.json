@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-27T04:03:48.719Z",
+  "catalogVersion": "2026.04.27",
+  "challengeSchemaVersions": [
+    2
+  ],
+  "packs": [
+    {
+      "id": "csharp-fundamentals",
+      "title": "C# Fundamentals",
+      "description": "C# practice: IDisposable, async deadlocks, retry helpers, refactoring conditionals, parameterized SQL.",
+      "url": "packs/csharp-fundamentals@0.1.0.json",
+      "sizeBytes": 10292,
+      "sha256": "fade7516a0e4965b4aa7e0b2d6fcc5cfcf5914abd2ccae7d7e011faf9ff9e5bf",
+      "challengeCount": 5,
+      "schemaVersion": 2,
+      "packVersion": "0.1.0",
+      "languages": [
+        "csharp"
+      ],
+      "topics": [
+        "async",
+        "concurrency",
+        "fundamentals",
+        "memory",
+        "patterns",
+        "security"
+      ],
+      "difficulties": [
+        "advanced",
+        "beginner",
+        "intermediate"
+      ],
+      "categories": [
+        "debug",
+        "explain",
+        "refactor",
+        "security",
+        "write"
+      ]
+    },
+    {
+      "id": "js-fundamentals",
+      "title": "JavaScript Fundamentals",
+      "description": "Vanilla JavaScript practice: this binding, closures, deep cloning, async refactors, testing pure functions.",
+      "url": "packs/js-fundamentals@0.1.0.json",
+      "sizeBytes": 8566,
+      "sha256": "59dc2001dce5e69c1c773238b55a1ab02ea821c73cfa65b7956cc5bbde87bffb",
+      "challengeCount": 5,
+      "schemaVersion": 2,
+      "packVersion": "0.1.0",
+      "languages": [
+        "javascript"
+      ],
+      "topics": [
+        "async",
+        "control-flow",
+        "fundamentals",
+        "immutability",
+        "patterns",
+        "testing"
+      ],
+      "difficulties": [
+        "beginner",
+        "intermediate"
+      ],
+      "categories": [
+        "debug",
+        "explain",
+        "refactor",
+        "tests",
+        "write"
+      ]
+    },
+    {
+      "id": "ts-fundamentals",
+      "title": "TypeScript Fundamentals",
+      "description": "Core TypeScript practice: typing patterns, async, refactor, and security.",
+      "url": "packs/ts-fundamentals@0.1.0.json",
+      "sizeBytes": 8972,
+      "sha256": "7db6fe37908cb25ceacfcb46f508059e43d4030e41759626b345974a631efe98",
+      "challengeCount": 5,
+      "schemaVersion": 2,
+      "packVersion": "0.1.0",
+      "languages": [
+        "typescript"
+      ],
+      "topics": [
+        "async",
+        "control-flow",
+        "fundamentals",
+        "immutability",
+        "patterns",
+        "security",
+        "typing"
+      ],
+      "difficulties": [
+        "advanced",
+        "beginner",
+        "intermediate"
+      ],
+      "categories": [
+        "debug",
+        "explain",
+        "refactor",
+        "security",
+        "write"
+      ]
+    }
+  ]
+}
