@@ -100,3 +100,88 @@ If your challenge uses one that isn't on the allow-list, the validator will tell
 - New topic → add to `tools/topics.txt`
 
 Open a single PR that adds both the allow-list entry and the first challenge using it.
+
+## YAML pitfalls
+
+The frontmatter is YAML, and YAML has a few sharp edges that will fail validation with confusing errors. The fix is almost always to single-quote the offending value.
+
+### Colon followed by space inside a list item
+
+```yaml
+# wrong — YAML reads this as a nested mapping {common use: "as const for ..."}
+expectedConcepts:
+  - common use: as const for tuples; readonly for properties
+```
+
+```yaml
+# right — single-quote the whole string
+expectedConcepts:
+  - 'common use: as const for tuples; readonly for properties'
+```
+
+### Curly braces at the start of a value
+
+```yaml
+# wrong — YAML tries to parse `{ ok: true }` as a flow-mapping
+solutionArchetypes:
+  - return { ok: true, value } | { ok: false, error }
+```
+
+```yaml
+# right — single-quote the whole string
+solutionArchetypes:
+  - 'return { ok: true, value } | { ok: false, error }'
+```
+
+### Square brackets at the start of a value
+
+```yaml
+# wrong — YAML tries to parse `[a, b]` as a flow-sequence
+expectedConcepts:
+  - [a, b, c] is the correct tuple type after as const
+```
+
+```yaml
+# right
+expectedConcepts:
+  - '[a, b, c] is the correct tuple type after as const'
+```
+
+### Code blocks in `instructions` (the body)
+
+The body **after** the closing `---` is plain Markdown — none of these YAML rules apply there. Use fenced code blocks freely:
+
+````markdown
+---
+id: ts-fundamentals/explain-thing
+title: Explain thing
+# ...frontmatter...
+---
+
+Explain what this does:
+
+```ts
+const x: { a: 1 } = { a: 1 };
+```
+````
+
+### When in doubt, quote
+
+Single-quoting any frontmatter value is always safe. If your value contains a single quote, double it: `'it''s fine'`. Or use double-quotes and escape with `\` (and remember double-quoted YAML processes escapes — `\n` becomes a newline).
+
+### The block-scalar `|` for code
+
+For multi-line code in `starter.code`, use `|` (literal block scalar) — it preserves newlines and ignores YAML special characters inside:
+
+```yaml
+starter:
+  kind: single
+  language: typescript
+  code: |
+    function debounce(fn, ms) {
+      let t;
+      return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+    }
+```
+
+The indentation inside `|` is stripped relative to the first content line, so indent your code consistently.
