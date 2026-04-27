@@ -1,0 +1,21 @@
+{
+  "name": "keep-sharp-content",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Source content and build tooling for the Keep Sharp challenge catalog. Each challenge is a Markdown file with YAML frontmatter; tools/build-catalog.ts bundles them into manifest.json + per-pack JSON files served via jsDelivr.",
+  "license": "MIT",
+  "scripts": {
+    "validate": "tsx tools/validate.ts",
+    "build": "tsx tools/build-catalog.ts",
+    "verify": "tsx tools/verify-dist.ts",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "gray-matter": "^4.0.3",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "zod": "^3.22.4"
+  }
+}

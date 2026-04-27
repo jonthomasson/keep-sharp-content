@@ -1,0 +1,10 @@
+csharp
+go
+java
+javascript
+kotlin
+python
+rust
+swift
+typescript
+*

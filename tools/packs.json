@@ -1,0 +1,17 @@
+{
+  "ts-fundamentals": {
+    "title": "TypeScript Fundamentals",
+    "description": "Core TypeScript practice: typing patterns, async, refactor, and security.",
+    "packVersion": "0.1.0"
+  },
+  "js-fundamentals": {
+    "title": "JavaScript Fundamentals",
+    "description": "Vanilla JavaScript practice: this binding, closures, deep cloning, async refactors, testing pure functions.",
+    "packVersion": "0.1.0"
+  },
+  "csharp-fundamentals": {
+    "title": "C# Fundamentals",
+    "description": "C# practice: IDisposable, async deadlocks, retry helpers, refactoring conditionals, parameterized SQL.",
+    "packVersion": "0.1.0"
+  }
+}
