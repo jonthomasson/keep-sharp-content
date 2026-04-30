@@ -91,48 +91,101 @@ Run `npm run validate`. If it fails:
 - Most failures are YAML quoting (see pitfalls above), unknown topic/language/framework (extend the relevant `.txt`), or `expectedConcepts` items shorter than 3 chars / outside the 1–8 range.
 - Fix and re-run until it reports `OK — N pack(s), M challenge(s) validated.`
 
-Do **not** run `npm run build` — that writes to `dist/` and isn't needed at authoring time. CI will build on the next release tag.
+If you only want to validate without publishing, stop here. Otherwise continue — Step 5 builds, commits, and ships in one pipeline.
 
-## Step 5 — offer to push
+## Step 5 — build, commit, push to main, and cut a release
 
-After validation passes, summarize what's about to be committed (file count, pack id, allow-list edits) and ask the user:
+This step lands the changes on `main` and publishes a release. Summarize what's about to ship (file count, pack id, allow-list edits, version bump) and ask the user **once**:
 
-> Push these changes? Branch name [pack/<language>-<YYYY-MM-DD>]:
+> Build, commit to main, and publish? (will push main + a v<YYYY.MM.DD> tag, triggering release.yml)
 
-Wait for an explicit yes. If the user declines or doesn't answer, stop here — they'll commit manually. If they accept:
+Wait for an explicit yes. If the user declines, stop here — they'll publish manually. If they accept, run the pipeline straight through. Stop and surface any failure immediately rather than pressing on.
 
-1. Run `git status` and `git diff --stat` first so you can confirm only the expected files are staged.
-2. Create the branch: `git checkout -b <branch>` (use the user's name if they supplied one, else the default).
-3. Stage **only** the files this command produced — list them explicitly, do not use `git add -A` or `git add .`. Typical set:
-   - `content/<language>/**/*.md` (the new challenges)
-   - `tools/packs.json` (only if a new pack was added)
-   - `tools/languages.txt` / `tools/topics.txt` / `tools/frameworks.txt` (only if you appended)
-4. Commit with a HEREDOC message:
-   ```
-   git commit -m "$(cat <<'EOF'
-   Add <pack-id> pack (<n> challenges)
+### 5a. Clean build + verify
 
-   <one-line summary of category/difficulty spread>
-   EOF
-   )"
-   ```
-   Do not pass `--no-verify` or `-c commit.gpgsign=false`. If a hook fails, fix the issue and create a NEW commit (do not amend).
-5. Push: `git push -u origin <branch>`. Do not push to `main` unless the user explicitly named `main` as the branch — and if they do, confirm once more before pushing.
-6. Print the branch name and the remote URL (from `git remote get-url origin`) so the user can open a PR in the browser if they want.
+```bash
+npm run clean && npm run build && npm run verify
+```
+
+`clean` matters because the build keeps `dist/packs/` between runs — without it, stale files like `ts-fundamentals@0.1.0.json` linger in the committed tree after a version bump. `verify` re-reads `dist/`, recomputes each pack's sha256, and re-validates every challenge against the built artifact.
+
+### 5b. Stage explicitly and commit on main
+
+```bash
+git status
+git diff --stat
+git checkout main
+git pull --ff-only origin main
+```
+
+Stage **only** the files this command produced — never `git add -A` or `git add .`. The typical set is:
+
+- `content/<language>/**/*.md` — the new challenges
+- `tools/packs.json` — if a new pack was added or `packVersion` was bumped
+- `tools/languages.txt` / `tools/topics.txt` / `tools/frameworks.txt` — only if you appended
+- `dist/manifest.json` and `dist/packs/*.json` — the rebuilt catalog
+
+Then commit with a HEREDOC message:
+
+```
+git commit -m "$(cat <<'EOF'
+Add <pack-id> pack (<n> challenges)
+
+<one-line summary of category/difficulty spread>
+EOF
+)"
+```
+
+Do not pass `--no-verify` or `-c commit.gpgsign=false`. If a pre-commit hook fails, fix the underlying issue and create a NEW commit (do not amend).
+
+### 5c. Push main and cut the release tag
+
+```bash
+git push origin main
+
+TAG="v$(date -u +%Y.%m.%d)"
+git tag "$TAG"
+git push origin "$TAG"
+```
+
+Tag format is date-based UTC (`vYYYY.MM.DD`). If today's tag already exists from an earlier release, append a suffix: `v2026.04.29.1`, `.2`, etc. — check with `git tag --list "$TAG*"` before tagging.
+
+The tag push triggers `.github/workflows/release.yml`, which builds `dist/` on the runner and attaches `manifest.json` + every `dist/packs/*.json` to a new GitHub Release. jsDelivr mirrors the new tag automatically.
+
+### 5d. Watch the release workflow
+
+Don't claim success until the workflow has finished:
+
+```bash
+gh run watch --exit-status $(gh run list --workflow=release.yml --branch="$TAG" --limit 1 --json databaseId -q '.[0].databaseId')
+```
+
+If `gh run watch` exits non-zero, fetch the failing job's logs (`gh run view --log-failed`) and surface the error to the user — don't retry blindly.
+
+### 5e. Confirm the release exists
+
+```bash
+gh release view "$TAG"
+```
+
+This prints the asset list (`manifest.json` + each pack file) and the release URL.
 
 ## Step 6 — final summary
 
 Report:
 
 - Pack id and version (and whether it was new or extended)
-- Files created (relative paths)
-- Validation result
+- Files created/modified (relative paths) — including the rebuilt `dist/` files
+- Validation + verify result
 - Any allow-list files you appended to (`languages.txt`, `topics.txt`, `frameworks.txt`)
-- Branch + commit sha if pushed; otherwise note that changes are local-only
-- Reminder: bump `packVersion` in `tools/packs.json` if extending an existing pack and it ships in a release alongside meaningful content changes
+- Commit sha on `main`
+- Release tag, GitHub Release URL, and the jsDelivr URL for the new manifest:
+  `https://cdn.jsdelivr.net/gh/<owner>/<repo>@<tag>/manifest.json`
+- Note: the VS Code extension picks up the new pack on its next 24h poll or via manual refresh
 
 ## Notes
 
 - `tools/schema.ts` mirrors `keep-sharp-dev/src/models/Challenge.ts`. Don't invent fields; if the schema rejects something, the schema is right.
-- `dist/` is committed but generated — don't hand-edit it.
-- One PR per coherent batch. Don't mix unrelated language packs in the same PR.
+- `dist/` is committed but generated — don't hand-edit it. The pipeline rebuilds and commits it as part of Step 5.
+- The publication pipeline goes straight to `main` and tags a release. There is no PR step. If the user wants to inspect locally first, they can decline the prompt at Step 5 and run `npm run build && npx serve dist -p 8787`, then point `keepSharp.catalog.url` at `http://localhost:8787/manifest.json`.
+- Only one release tag per UTC day by default. For multiple releases on the same day, use suffixes (`v2026.04.29.1`, `.2`).
