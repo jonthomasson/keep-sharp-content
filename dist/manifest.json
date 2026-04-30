@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-27T04:03:48.719Z",
-  "catalogVersion": "2026.04.27",
+  "generatedAt": "2026-04-30T03:19:04.721Z",
+  "catalogVersion": "2026.04.30",
   "challengeSchemaVersions": [
     2
   ],
@@ -76,23 +76,30 @@
     {
       "id": "ts-fundamentals",
       "title": "TypeScript Fundamentals",
-      "description": "Core TypeScript practice: typing patterns, async, refactor, and security.",
-      "url": "packs/ts-fundamentals@0.1.0.json",
-      "sizeBytes": 8972,
-      "sha256": "7db6fe37908cb25ceacfcb46f508059e43d4030e41759626b345974a631efe98",
-      "challengeCount": 5,
+      "description": "Core TypeScript practice: typing patterns, async, refactor, security, testing, a11y, architecture, and design.",
+      "url": "packs/ts-fundamentals@0.2.0.json",
+      "sizeBytes": 27980,
+      "sha256": "4fab5b51fc6b5feff91adf326245e282508c7a3f884491203d5183dd7dd8be2c",
+      "challengeCount": 15,
       "schemaVersion": 2,
-      "packVersion": "0.1.0",
+      "packVersion": "0.2.0",
       "languages": [
         "typescript"
       ],
       "topics": [
+        "a11y",
+        "architecture",
         "async",
         "control-flow",
+        "dom",
         "fundamentals",
+        "generics",
         "immutability",
         "patterns",
+        "performance",
         "security",
+        "state-management",
+        "testing",
         "typing"
       ],
       "difficulties": [
@@ -101,10 +108,14 @@
         "intermediate"
       ],
       "categories": [
+        "a11y",
+        "architecture",
         "debug",
+        "design",
         "explain",
         "refactor",
         "security",
+        "tests",
         "write"
       ]
     }

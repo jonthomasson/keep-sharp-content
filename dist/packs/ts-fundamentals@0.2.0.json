@@ -1,0 +1,463 @@
+{
+  "schemaVersion": 2,
+  "packId": "ts-fundamentals",
+  "packVersion": "0.2.0",
+  "challenges": [
+    {
+      "id": "ts-fundamentals/a11y-button-not-div",
+      "title": "Find the a11y issues: clickable div",
+      "category": "a11y",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "a11y",
+        "dom"
+      ],
+      "tags": [
+        "aria",
+        "semantics"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "interface Props { onConfirm: () => void; label: string }\n\nexport function ConfirmControl({ onConfirm, label }: Props) {\n  return (\n    <div className=\"btn\" onClick={onConfirm}>\n      {label}\n    </div>\n  );\n}\n"
+      },
+      "expectedConcepts": [
+        "a div is not focusable by default — keyboard users cannot tab to it or activate it with Enter/Space",
+        "screen readers announce the element as a generic group, not a button, so the user has no idea it is interactive",
+        "fix is to use the semantic <button> element, which provides focusability, role, and keyboard activation for free",
+        "if a non-button element is required, add role=\"button\", tabIndex=0, and onKeyDown handling for both Enter and Space",
+        "visible label text alone is fine for sighted users but does not convey the button role to assistive tech"
+      ],
+      "schemaVersion": 2,
+      "instructions": "This React/TSX component looks like a button but has accessibility problems. List **at least three** distinct issues a keyboard or screen-reader user would experience, then rewrite the component to fix them.\r\n\r\nBriefly explain (1-2 sentences) why using the semantic `<button>` element is preferable to bolting `role=\"button\"` and `tabIndex` onto the `<div>`.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/architecture-layered-imports",
+      "title": "Diagnose a layered architecture violation",
+      "category": "architecture",
+      "difficulty": "advanced",
+      "language": "typescript",
+      "topics": [
+        "architecture",
+        "patterns"
+      ],
+      "tags": [
+        "layering",
+        "dependency-inversion"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// src/domain/Order.ts\nimport { db } from '../infrastructure/db';\n\nexport class Order {\n  constructor(public id: string, public total: number) {}\n\n  async save(): Promise<void> {\n    await db.query('INSERT INTO orders (id, total) VALUES ($1, $2)', [this.id, this.total]);\n  }\n}\n\n// src/application/checkout.ts\nimport { Order } from '../domain/Order';\nexport async function checkout(total: number): Promise<void> {\n  const order = new Order(crypto.randomUUID(), total);\n  await order.save();\n}\n"
+      },
+      "expectedConcepts": [
+        "the domain layer is importing from infrastructure — dependencies should point inward, not outward",
+        "Order cannot be unit-tested without a real (or heavily mocked) database connection",
+        "the standard fix introduces an OrderRepository interface in the domain layer that infrastructure implements",
+        "the application layer composes the concrete repository with the domain entity, i.e. dependency injection",
+        "this is the dependency inversion principle / hexagonal architecture applied — the domain owns the contract"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The snippet shows a domain entity (`Order`) that talks directly to a database module from the infrastructure layer. In a layered or hexagonal architecture this is an inversion-of-dependencies smell.\r\n\r\n1. Explain which dependency rule is violated and the **concrete consequences** (testing, coupling, ability to swap the database, redeployability).\r\n2. Sketch a refactor: show the new shape of `Order`, the **interface** that would live in the domain layer, and how `checkout` would compose them. TypeScript pseudocode is fine — the goal is the structural shape, not a runnable example.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/debug-array-includes-narrowing",
+      "title": "Find the bug: includes() rejects a string",
+      "category": "debug",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "fundamentals"
+      ],
+      "tags": [
+        "literal-types",
+        "as-const"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "const ROLES = ['admin', 'editor', 'viewer'] as const;\n\nfunction isRole(input: string): boolean {\n  return ROLES.includes(input);\n}\n"
+      },
+      "expectedConcepts": [
+        "ROLES is typed as readonly admin | editor | viewer tuple because of as const",
+        "includes() on that tuple expects an argument of the literal union, not a generic string",
+        "the TS error reports that string is not assignable to the literal union of role names",
+        "fix options include widening via (ROLES as readonly string[]).includes(input), using a type predicate, or removing as const",
+        "the better fix is a user-defined type guard with signature (x: string): x is typeof ROLES[number]"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The function above produces a TypeScript error on the `.includes(input)` line. Explain why TypeScript rejects it — be specific about the inferred type of `ROLES` and what `Array.prototype.includes` expects after `as const`. Then propose at least **two** ways to fix it, and indicate which fix you'd ship to production and why.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/debug-promise-not-awaited",
+      "title": "Find the bug: forgotten await",
+      "category": "debug",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "async",
+        "fundamentals"
+      ],
+      "tags": [
+        "promises"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "async function notifySignup(user: { email: string }): Promise<void> {\n  sendEmail(user.email, 'Welcome!');\n  logEvent('signup_email_sent', { email: user.email });\n}\n\ndeclare function sendEmail(to: string, subject: string): Promise<void>;\ndeclare function logEvent(name: string, payload: Record<string, unknown>): void;\n"
+      },
+      "expectedConcepts": [
+        "sendEmail returns a Promise but the return value is discarded (not awaited, not chained)",
+        "logEvent runs immediately with the un-awaited Promise still pending — the email may not have been sent yet",
+        "if sendEmail rejects, the rejection becomes an unhandled promise rejection",
+        "fix is to await sendEmail (and propagate by making the function async, which it already is)"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The function above is meant to send a welcome email and then log that it was sent. There's a subtle but important bug. Identify it, explain what goes wrong at runtime (and what the user-visible consequence might be), and write the corrected function.\n\nBonus: explain what would happen if `sendEmail` throws — both before and after your fix.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/design-typed-event-emitter",
+      "title": "Design a type-safe event emitter API",
+      "category": "design",
+      "difficulty": "advanced",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "generics",
+        "patterns"
+      ],
+      "tags": [
+        "api-design",
+        "mapped-types"
+      ],
+      "expectedConcepts": [
+        "the emitter is generic over an event-name to payload map, e.g. E extends Record<string, unknown>",
+        "on<K extends keyof E>(event, listener) ties the listener payload type to E[K]",
+        "emit<K extends keyof E>(event, payload) makes a wrong-shape payload a compile-time error",
+        "off and once preserve the same generic constraint so listener references stay typed at call sites",
+        "tradeoff: the internal listener storage typically widens to keyof E with a small cast; externally type-safe, internally pragmatic"
+      ],
+      "solutionArchetypes": [
+        "generic over a payload-map type with on/off/emit using K extends keyof E",
+        "class with a private Map<keyof E, Set<Listener>>: widen at storage, narrow at the public API"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Design (don't fully implement) the public TypeScript API for a type-safe event emitter. The caller defines the events and their payload shapes once, and after that:\r\n\r\n```ts\r\ntype Events = {\r\n  'user:login': { userId: string };\r\n  'user:logout': void;\r\n};\r\n\r\nconst bus = new TypedEmitter<Events>();\r\nbus.on('user:login', (p) => p.userId);    // p inferred as { userId: string }\r\nbus.emit('user:login', { userId: '1' });  // ok\r\nbus.emit('user:login', { wrong: true });  // compile error\r\n```\r\n\r\nShow the **type signatures** for the class and its `on`, `off`, `once`, and `emit` methods (body-less sketches are fine). Then in 2-3 sentences, describe one concrete tradeoff your design makes — for example, how internal listener storage stays typed, how `void`-payload events drop the second argument, or how you handle wildcard listeners.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/explain-discriminated-unions",
+      "title": "Explain discriminated unions",
+      "category": "explain",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "patterns"
+      ],
+      "tags": [
+        "tagged-union",
+        "narrowing"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "type LoadingState =\n  | { status: 'idle' }\n  | { status: 'loading' }\n  | { status: 'success'; data: string }\n  | { status: 'error'; error: Error };\n\nfunction render(s: LoadingState): string {\n  switch (s.status) {\n    case 'idle': return 'Click load';\n    case 'loading': return 'Loading...';\n    case 'success': return s.data;\n    case 'error': return s.error.message;\n  }\n}\n"
+      },
+      "expectedConcepts": [
+        "the literal status field is the discriminant — TypeScript narrows the union on each case",
+        "inside case success, s.data is accessible because the variant is narrowed; outside that case it would be a type error",
+        "without a literal-typed discriminant, the compiler cannot tell which variant is in hand at a given branch",
+        "exhaustiveness can be enforced by adding a default branch that assigns s to a never-typed variable"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Look at the `LoadingState` type and the `render` function above. In 3-5 sentences, explain:\r\n\r\n1. What makes this a **discriminated union** rather than a plain union of object types.\r\n2. Why the compiler allows `s.data` inside `case 'success'` but would reject it elsewhere.\r\n3. How you would extend `render` to be checked for **exhaustiveness** — so adding a new variant to `LoadingState` later produces a compile error if `render` doesn't handle it.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/explain-never-vs-unknown",
+      "title": "Explain never vs unknown vs any",
+      "category": "explain",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "fundamentals"
+      ],
+      "tags": [
+        "top-bottom-types",
+        "narrowing"
+      ],
+      "expectedConcepts": [
+        "any disables type checking — assignable in both directions, no narrowing required",
+        "unknown is the type-safe top type — accepts any value but requires narrowing before use",
+        "never is the bottom type — no value inhabits it, used for impossible branches and exhaustiveness",
+        "unknown values cannot be passed where a specific type is expected without a type guard or assertion",
+        "common use of never: return type of throw helpers and the default branch in exhaustive switches"
+      ],
+      "schemaVersion": 2,
+      "instructions": "In 3-5 sentences, explain the difference between TypeScript's `any`, `unknown`, and `never`. Address:\r\n\r\n- where each one sits in the type hierarchy (top, bottom, or escape hatch),\r\n- what the compiler lets you do with a value of each type,\r\n- one situation where `unknown` is preferable to `any`, and one situation where `never` is the right return type.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/explain-readonly-vs-as-const",
+      "title": "Explain readonly vs as const",
+      "category": "explain",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "immutability"
+      ],
+      "tags": [
+        "literal-types",
+        "tuples"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "interface User {\n  readonly id: string;\n  name: string;\n}\n\nconst PERMISSIONS = ['read', 'write', 'admin'] as const;\n"
+      },
+      "expectedConcepts": [
+        "readonly is a property modifier (compile-time only) that forbids reassignment of that property",
+        "as const narrows literal types AND makes the value deeply readonly",
+        "neither one changes runtime behavior — the underlying JS object is still mutable",
+        "PERMISSIONS becomes the readonly tuple type readonly [\"read\", \"write\", \"admin\"] not string[]",
+        "common use: as const for tuples and config literals; readonly for properties and parameters"
+      ],
+      "schemaVersion": 2,
+      "instructions": "In 3-4 sentences, explain the difference between the `readonly` modifier and the `as const` assertion in TypeScript. Use the snippet above as a reference. Specifically address:\n\n- what each one changes about the **type** vs the **runtime value**,\n- when you would reach for one over the other,\n- and what the inferred type of `PERMISSIONS` is after `as const` (compared to without it).",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/refactor-loose-typing",
+      "title": "Refactor away from any",
+      "category": "refactor",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "patterns"
+      ],
+      "tags": [
+        "generics",
+        "narrowing"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Returns the elements of `items` for which `predicate` returns true.\nfunction pickWhere(items: any[], predicate: (item: any) => boolean): any[] {\n  const out: any[] = [];\n  for (const item of items) {\n    if (predicate(item)) out.push(item);\n  }\n  return out;\n}\n\n// Caller has to cast — bad:\nconst numbers = pickWhere([1, 2, 3, 'x'], (n) => typeof n === 'number') as number[];\n"
+      },
+      "expectedConcepts": [
+        "replace any with a generic parameter so the return type follows the input type",
+        "the function should be generic over the array element type T",
+        "use a type predicate or a narrower constraint instead of any",
+        "the resulting signature lets callers get back a typed array without casting"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Refactor `pickWhere` so it has a precise type signature and the caller does not need to cast. Specifically:\n\n- Make it generic so the return type matches the element type of `items`.\n- Bonus: support a **type predicate** signature so that `pickWhere([1, 2, 'x'], (n): n is number => typeof n === 'number')` narrows the result to `number[]` automatically.\n\nShow the updated signature and body, and rewrite the caller without the `as number[]` cast.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/refactor-promise-then-to-async",
+      "title": "Refactor .then() chain to async/await",
+      "category": "refactor",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "async",
+        "fundamentals"
+      ],
+      "tags": [
+        "promises",
+        "async-await"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "interface User { id: string; name: string }\ninterface Order { id: string; total: number }\n\ndeclare function fetchUser(id: string): Promise<User>;\ndeclare function fetchOrders(userId: string): Promise<Order[]>;\n\nfunction loadUserDashboard(userId: string): Promise<{ user: User; orders: Order[] }> {\n  return fetchUser(userId).then((user) => {\n    return fetchOrders(user.id).then((orders) => {\n      return { user, orders };\n    });\n  });\n}\n"
+      },
+      "expectedConcepts": [
+        "convert to an async function and use await on each Promise",
+        "rejection handling becomes implicit via try/catch or simple propagation — no nested .catch needed",
+        "the second fetch depends on the first, so the awaits stay sequential (not Promise.all)",
+        "the public return type Promise<{ user; orders }> is unchanged because async returns are auto-wrapped"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Refactor `loadUserDashboard` to use `async`/`await` instead of nested `.then()` callbacks. Keep behavior identical — including the order of the two network calls.\r\n\r\nThen in 1-2 sentences, describe what changes about **error propagation** between the original style and the refactored version (e.g. what a caller would have to write to handle a failure).",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/security-prototype-pollution",
+      "title": "Identify the security issue: prototype pollution",
+      "category": "security",
+      "difficulty": "advanced",
+      "language": "typescript",
+      "topics": [
+        "security",
+        "fundamentals"
+      ],
+      "tags": [
+        "prototype-pollution",
+        "deep-merge"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "type AnyObj = Record<string, any>;\n\nexport function deepMerge(target: AnyObj, source: AnyObj): AnyObj {\n  for (const key of Object.keys(source)) {\n    const value = source[key];\n    if (value && typeof value === 'object' && !Array.isArray(value)) {\n      target[key] = deepMerge(target[key] ?? {}, value);\n    } else {\n      target[key] = value;\n    }\n  }\n  return target;\n}\n\n// Imagine `req.body` comes from untrusted JSON:\n// deepMerge(userSettings, req.body);\n"
+      },
+      "expectedConcepts": [
+        "the recursive merge writes attacker-controlled keys directly onto target without filtering",
+        "an input like { \"__proto__\": { \"isAdmin\": true } } pollutes Object.prototype, so every plain object suddenly has isAdmin === true",
+        "the same bug also lets attackers write to \"constructor\" and \"prototype\"",
+        "mitigation is to skip dangerous keys (\"__proto__\", \"constructor\", \"prototype\") OR use Object.create(null) as the target OR use structuredClone / a vetted library"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The `deepMerge` above is used to apply user-supplied settings on top of defaults. With a malicious `req.body`, this function enables a classic JavaScript vulnerability.\n\n1. Name the vulnerability.\n2. Show a concrete attack payload (a JSON object) and describe what it does to `Object.prototype` after the call.\n3. Rewrite `deepMerge` to be safe. Briefly explain why your fix works.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/tests-edge-cases-parser",
+      "title": "Test edge cases for a CSV cell parser",
+      "category": "tests",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "testing",
+        "fundamentals"
+      ],
+      "tags": [
+        "unit-tests",
+        "edge-cases"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Trims whitespace, unwraps surrounding double-quotes, and treats two consecutive\n// double-quotes inside a quoted value as one literal double-quote.\nexport function parseCell(raw: string): string {\n  const trimmed = raw.trim();\n  if (trimmed.length >= 2 && trimmed.startsWith('\"') && trimmed.endsWith('\"')) {\n    return trimmed.slice(1, -1).replace(/\"\"/g, '\"');\n  }\n  return trimmed;\n}\n"
+      },
+      "expectedConcepts": [
+        "covers the happy path — a plain word with surrounding whitespace",
+        "covers a quoted value where leading/trailing spaces inside the quotes are preserved",
+        "covers escaped double-quotes inside a quoted value collapsing two doubles into one",
+        "covers an empty string and a single-character non-quoted input",
+        "uses descriptive test names so a failing run names the broken behavior, not just the input"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Write a focused suite of unit tests (Jest or Vitest style — `describe`/`it`/`expect`) for `parseCell`. Aim for **5-7 tests** total.\r\n\r\nEach test should target a distinct behavior described in the comment — don't write multiple tests that exercise the same code path. Name each test so a reader can tell from the failure line alone exactly which behavior regressed.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/write-debounce-generic",
+      "title": "Write a function: typed debounce",
+      "category": "write",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "generics",
+        "performance"
+      ],
+      "tags": [
+        "higher-order",
+        "timing"
+      ],
+      "expectedConcepts": [
+        "generic over the wrapped function's parameter tuple, e.g. Args extends unknown[]",
+        "returned function preserves the original parameter types — no any in the public signature",
+        "uses setTimeout/clearTimeout to reset the pending call on every invocation",
+        "return type of the wrapper is (...args: Args) => void since debounced calls cannot synchronously return the original result",
+        "a cancel/flush method or returning the timer is acceptable but not required"
+      ],
+      "solutionArchetypes": [
+        "generic signature: (fn, ms) => (...args) => void with Args extends unknown[]",
+        "close over a NodeJS.Timeout / number handle, clear it at the top of each call, then schedule a new one"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Write `debounce`, a generic helper that wraps a function so it only runs after `ms` milliseconds have passed without it being called again.\r\n\r\nRequirements:\r\n\r\n- The signature must preserve the wrapped function's parameter types — `debounce((q: string) => ...)` returns a function that takes a `string`, not `any`.\r\n- Each call resets the timer.\r\n- The wrapped function returns `void` (don't try to plumb back an async result).\r\n\r\nShow the implementation and a small example using it on a `(query: string) => void` search handler. Briefly note what `this` binding looks like for your version (callers, classes, etc.).",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/write-redux-reducer-typed",
+      "title": "Write a function: typed cart reducer",
+      "category": "write",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "state-management",
+        "typing"
+      ],
+      "tags": [
+        "discriminated-union",
+        "reducer"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "interface CartState {\n  items: { sku: string; qty: number }[];\n  couponCode: string | null;\n}\n\n// Implement cartReducer for these actions:\n//   - ADD_ITEM     payload: { sku: string; qty: number }\n//   - REMOVE_ITEM  payload: { sku: string }\n//   - APPLY_COUPON payload: { code: string }\n//   - CLEAR        no payload\n"
+      },
+      "expectedConcepts": [
+        "define an Action type as a discriminated union with a literal type field per variant",
+        "reducer signature is (state, action) => CartState — pure, no mutation of the input state or its arrays",
+        "switching on action.type narrows the payload so each case sees the correct fields",
+        "default branch returns state unchanged or asserts exhaustiveness via an assertNever helper",
+        "ADD_ITEM merges with an existing line item by sku rather than pushing a duplicate row"
+      ],
+      "solutionArchetypes": [
+        "discriminated union Action plus switch(action.type), each case returning a fresh state object",
+        "extract per-action helpers (addItem, removeItem) for clarity once the reducer grows past a few cases"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Implement `cartReducer` for the state and actions described in the starter. Constraints:\r\n\r\n- Define an `Action` type as a **discriminated union** — no `any` for the payload.\r\n- The reducer must be **pure**: no mutation of `state`, its `items` array, or any nested object.\r\n- For `ADD_ITEM`, if a line for that `sku` already exists, **increase its qty** instead of pushing a duplicate row.\r\n- For `CLEAR`, reset to a fresh empty cart (`items: []`, `couponCode: null`).\r\n\r\nShow both the `Action` union and the reducer body. A short example dispatch would be a nice touch but is not required.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "ts-fundamentals/write-typed-result",
+      "title": "Write a function: typed Result helper",
+      "category": "write",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "typing",
+        "patterns",
+        "control-flow"
+      ],
+      "tags": [
+        "discriminated-union",
+        "error-handling"
+      ],
+      "expectedConcepts": [
+        "Result is a discriminated union with an ok flag distinguishing success from failure",
+        "tryCatch wraps any sync or async function, returning Result<T, Error> instead of throwing",
+        "inside the function, use try/catch and await fn() to handle both sync throws and async rejections",
+        "the ok discriminant lets the caller narrow without type assertions"
+      ],
+      "solutionArchetypes": [
+        "return a discriminated union { ok: true, value } | { ok: false, error }",
+        "accept () => T | Promise<T>, await the call, return value on success or error on catch"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Write a TypeScript helper that turns \"throwing code\" into \"value-returning code\" using a discriminated-union `Result` type. Specifically:\n\n1. Define a generic `Result<T, E = Error>` type that is either `{ ok: true, value: T }` or `{ ok: false, error: E }`.\n2. Implement `async function tryCatch<T>(fn: () => T | Promise<T>): Promise<Result<T>>` that:\n   - Runs `fn()` (which may be sync or async).\n   - Returns `{ ok: true, value }` on success.\n   - Returns `{ ok: false, error }` (where `error` is an `Error`) on any throw or rejection.\n\nUse it like: `const r = await tryCatch(() => JSON.parse(input)); if (r.ok) { ... } else { ... }`. No `unknown` casts in the call site.",
+      "packId": "ts-fundamentals",
+      "packVersion": "0.2.0"
+    }
+  ]
+}
