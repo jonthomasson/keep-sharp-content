@@ -1,8 +1,8 @@
 {
   "ts-fundamentals": {
     "title": "TypeScript Fundamentals",
-    "description": "Core TypeScript practice: typing patterns, async, refactor, and security.",
-    "packVersion": "0.1.0"
+    "description": "Core TypeScript practice: typing patterns, async, refactor, security, testing, a11y, architecture, and design.",
+    "packVersion": "0.2.0"
   },
   "js-fundamentals": {
     "title": "JavaScript Fundamentals",
