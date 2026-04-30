@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-30T03:19:04.721Z",
+  "generatedAt": "2026-04-30T03:56:35.091Z",
   "catalogVersion": "2026.04.30",
   "challengeSchemaVersions": [
     2
@@ -9,23 +9,33 @@
     {
       "id": "csharp-fundamentals",
       "title": "C# Fundamentals",
-      "description": "C# practice: IDisposable, async deadlocks, retry helpers, refactoring conditionals, parameterized SQL.",
-      "url": "packs/csharp-fundamentals@0.1.0.json",
-      "sizeBytes": 10292,
-      "sha256": "fade7516a0e4965b4aa7e0b2d6fcc5cfcf5914abd2ccae7d7e011faf9ff9e5bf",
-      "challengeCount": 5,
+      "description": "C# practice across typing, async, collections, performance, testing, refactoring, security, architecture, and a11y.",
+      "url": "packs/csharp-fundamentals@0.2.0.json",
+      "sizeBytes": 30772,
+      "sha256": "5679caad513d8e364967d4ba86733825f9278570443fa7dd86791c9c04a92ef0",
+      "challengeCount": 15,
       "schemaVersion": 2,
-      "packVersion": "0.1.0",
+      "packVersion": "0.2.0",
       "languages": [
         "csharp"
       ],
+      "frameworks": [
+        "aspnet"
+      ],
       "topics": [
+        "a11y",
+        "architecture",
         "async",
+        "collections",
         "concurrency",
+        "dom",
         "fundamentals",
         "memory",
         "patterns",
-        "security"
+        "performance",
+        "security",
+        "testing",
+        "typing"
       ],
       "difficulties": [
         "advanced",
@@ -33,10 +43,14 @@
         "intermediate"
       ],
       "categories": [
+        "a11y",
+        "architecture",
         "debug",
+        "design",
         "explain",
         "refactor",
         "security",
+        "tests",
         "write"
       ]
     },

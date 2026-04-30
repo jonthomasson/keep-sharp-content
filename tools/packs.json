@@ -11,7 +11,7 @@
   },
   "csharp-fundamentals": {
     "title": "C# Fundamentals",
-    "description": "C# practice: IDisposable, async deadlocks, retry helpers, refactoring conditionals, parameterized SQL.",
-    "packVersion": "0.1.0"
+    "description": "C# practice across typing, async, collections, performance, testing, refactoring, security, architecture, and a11y.",
+    "packVersion": "0.2.0"
   }
 }

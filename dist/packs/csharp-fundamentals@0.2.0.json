@@ -1,0 +1,481 @@
+{
+  "schemaVersion": 2,
+  "packId": "csharp-fundamentals",
+  "packVersion": "0.2.0",
+  "challenges": [
+    {
+      "id": "csharp-fundamentals/a11y-asp-form-labels",
+      "title": "Find the a11y issues: ASP.NET form without labels",
+      "category": "a11y",
+      "difficulty": "beginner",
+      "language": "csharp",
+      "framework": "aspnet",
+      "topics": [
+        "a11y",
+        "dom"
+      ],
+      "tags": [
+        "forms",
+        "semantics",
+        "razor"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "@* Razor view: Views/Account/Login.cshtml *@\n<form asp-action=\"Login\" method=\"post\">\n    <div>Email</div>\n    <input asp-for=\"Email\" type=\"email\" />\n\n    <div>Password</div>\n    <input asp-for=\"Password\" type=\"password\" />\n\n    <div onclick=\"this.closest('form').submit()\">Sign in</div>\n</form>\n"
+      },
+      "expectedConcepts": [
+        "inputs have no associated <label> element — screen readers announce the field as unlabelled",
+        "fix is <label asp-for=\"Email\">Email</label> which renders for= pointing at the rendered input id",
+        "the Sign in div is not a button — keyboard users cannot tab to it or activate it with Enter or Space",
+        "replace with <button type=\"submit\">Sign in</button> for native role, focusability, and keyboard activation",
+        "visible text near a field is sighted-only — the programmatic association via for= is what assistive tech relies on"
+      ],
+      "schemaVersion": 2,
+      "instructions": "This Razor view renders a sign-in form with several accessibility problems. List **at least three** distinct issues a keyboard or screen-reader user would encounter, then rewrite the form using the appropriate ASP.NET Core tag helpers and HTML elements.\n\nBriefly explain (1-2 sentences) why associating a `<label>` with its `<input>` via `for=` (or via the `asp-for` label tag helper) is preferable to placing visible text near the field.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/architecture-controller-database-coupling",
+      "title": "Diagnose tight coupling between controller and database",
+      "category": "architecture",
+      "difficulty": "advanced",
+      "language": "csharp",
+      "framework": "aspnet",
+      "topics": [
+        "architecture",
+        "patterns"
+      ],
+      "tags": [
+        "hexagonal",
+        "dependency-inversion"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "[ApiController]\n[Route(\"api/orders\")]\npublic class OrderController : ControllerBase\n{\n    [HttpPost]\n    public async Task<IActionResult> Create([FromBody] OrderDto dto)\n    {\n        using var conn = new SqlConnection(Config.ConnectionString);\n        await conn.OpenAsync();\n\n        using var cmd = new SqlCommand(\n            \"INSERT INTO Orders (Id, CustomerId, Total) VALUES (@id, @cid, @total)\",\n            conn);\n        cmd.Parameters.AddWithValue(\"@id\", Guid.NewGuid());\n        cmd.Parameters.AddWithValue(\"@cid\", dto.CustomerId);\n        cmd.Parameters.AddWithValue(\"@total\", dto.Total);\n        await cmd.ExecuteNonQueryAsync();\n\n        return Ok();\n    }\n}\n"
+      },
+      "expectedConcepts": [
+        "the action mixes HTTP transport, persistence, and implicit domain rules in one method — three responsibilities in one place",
+        "consequences: cannot unit-test Create without a real SQL Server, cannot swap stores without rewriting the controller, controller changes whenever schema changes",
+        "standard fix: extract IOrderRepository in a domain or application layer and have an SqlOrderRepository implement it in infrastructure",
+        "the controller is reduced to: bind dto, call repository (or an application handler), translate result to an HTTP response",
+        "register the repository in Program.cs (services.AddScoped<IOrderRepository, SqlOrderRepository>()) — Scoped is appropriate for SQL connection lifetimes"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The action above mixes HTTP concerns, raw SQL, and (implicitly) domain logic in one method. In a layered or hexagonal architecture this is a classic coupling smell.\n\n1. Identify the responsibilities tangled together and the **practical consequences** (testability, portability, rate of change).\n2. Sketch a refactor showing: an `IOrderRepository` interface, a thin application handler (or service) class, and the rewritten controller. Pseudocode is fine — focus on the **shape** of the dependencies, not a runnable example.\n3. Briefly note where you would register the repository in `Program.cs` and what DI lifetime is appropriate for a SQL-connection-using repo.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/debug-async-deadlock",
+      "title": "Find the bug: async deadlock with .Result",
+      "category": "debug",
+      "difficulty": "advanced",
+      "language": "csharp",
+      "topics": [
+        "async",
+        "concurrency",
+        "fundamentals"
+      ],
+      "tags": [
+        "deadlock",
+        "synchronizationcontext"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "// Inside a classic ASP.NET MVC controller action (not ASP.NET Core):\npublic ActionResult Index()\n{\n    var data = LoadAsync().Result; // <-- hangs forever in production\n    return View(data);\n}\n\nprivate async Task<string> LoadAsync()\n{\n    var client = new HttpClient();\n    var response = await client.GetStringAsync(\"https://example.com\");\n    return response;\n}\n"
+      },
+      "expectedConcepts": [
+        "calling .Result (or .Wait()) on a Task blocks the calling thread",
+        "in contexts with a SynchronizationContext (classic ASP.NET, WinForms, WPF), the awaited continuation tries to resume on the same context",
+        "the calling thread is blocked waiting for the Task; the Task is waiting for the context's only thread — classic deadlock",
+        "ASP.NET Core has no SynchronizationContext, so the same code does NOT deadlock there — but it still blocks a thread-pool thread, harming throughput",
+        "the fix is to make the call chain async all the way (await GetAsync()), not to add ConfigureAwait(false) at every layer (that's a workaround, not a fix)"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The controller above hangs forever in classic ASP.NET but appears to \"work\" in a console app or in ASP.NET Core. Identify the bug and explain it precisely.\n\nYour answer should:\n\n1. Name what's happening (in two words).\n2. Walk through which thread is blocked, which task is waiting, and why neither can make progress.\n3. Show the corrected controller code.\n4. Explain why a band-aid like `LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult()` is not the right fix even when it doesn't hang.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/debug-equality-comparison",
+      "title": "Find the bug: HashSet contains duplicates",
+      "category": "debug",
+      "difficulty": "intermediate",
+      "language": "csharp",
+      "topics": [
+        "typing",
+        "fundamentals"
+      ],
+      "tags": [
+        "equality",
+        "gethashcode"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public class Point\n{\n    public int X { get; }\n    public int Y { get; }\n    public Point(int x, int y) { X = x; Y = y; }\n}\n\nvar set = new HashSet<Point>();\nset.Add(new Point(1, 2));\nset.Add(new Point(1, 2));\nConsole.WriteLine(set.Count); // expected 1, prints 2\n"
+      },
+      "expectedConcepts": [
+        "HashSet<T> uses GetHashCode and Equals to detect duplicates and both come from object by default",
+        "object.Equals is reference equality, so two distinct Point instances are never equal even with identical X and Y",
+        "fix: override Equals(object?) and GetHashCode together — they must be consistent so equal objects produce equal hashes",
+        "converting Point to a record (record Point(int X, int Y)) gives value equality automatically and is the smallest correct fix",
+        "implementing IEquatable<Point> avoids boxing on the equality path because HashSet probes for it"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The snippet creates a `HashSet<Point>` and adds the \"same\" point twice but ends up with `Count == 2`. Explain what is happening at the type-system level — be specific about which methods `HashSet<T>` calls and what those methods do for a default `class`.\n\nThen propose at least **two** ways to fix it. Indicate which one you would ship to production code and why.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/debug-modifying-collection-while-enumerating",
+      "title": "Find the bug: modifying a list during iteration",
+      "category": "debug",
+      "difficulty": "beginner",
+      "language": "csharp",
+      "topics": [
+        "collections",
+        "fundamentals"
+      ],
+      "tags": [
+        "foreach",
+        "invalidoperationexception"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public static void RemoveExpired(List<Session> sessions, DateTime cutoff)\n{\n    foreach (var session in sessions)\n    {\n        if (session.LastSeen < cutoff)\n        {\n            sessions.Remove(session);\n        }\n    }\n}\n\npublic record Session(string Id, DateTime LastSeen);\n"
+      },
+      "expectedConcepts": [
+        "the List<T> enumerator detects the version change and throws InvalidOperationException on the next MoveNext",
+        "the runtime exception message is about the collection being modified during enumeration",
+        "fix options include iterating a snapshot via ToList() or ToArray(), calling sessions.RemoveAll(predicate), or building a new filtered list",
+        "RemoveAll is the most idiomatic single-call fix for this exact pattern",
+        "collecting into a separate to-remove list and removing after the foreach is also a valid fix"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The method above is meant to remove every session older than `cutoff` from the list. It compiles, but it throws at runtime as soon as it actually has something to remove.\n\nIdentify the **exception type** and the root cause (be specific about why a `foreach` over `List<T>` cannot tolerate a mutating call), then propose at least **two** correct fixes. Indicate which one you would prefer in production code and why.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/design-options-pattern",
+      "title": "Design strongly-typed configuration with the options pattern",
+      "category": "design",
+      "difficulty": "advanced",
+      "language": "csharp",
+      "framework": "aspnet",
+      "topics": [
+        "architecture",
+        "patterns"
+      ],
+      "tags": [
+        "options",
+        "configuration",
+        "validation"
+      ],
+      "expectedConcepts": [
+        "defines a POCO options class (e.g. EmailOptions) with one property per configuration key",
+        "registers via services.Configure<EmailOptions>(builder.Configuration.GetSection(\"Email\")) so values flow from appsettings.json, env vars, or other providers",
+        "consumers inject IOptions<T>, IOptionsSnapshot<T>, or IOptionsMonitor<T> rather than IConfiguration directly",
+        "adds DataAnnotations validation and chains .ValidateDataAnnotations().ValidateOnStart() so misconfiguration fails fast at boot rather than at first use",
+        "separates the source of configuration from consumers — switching providers does not require touching EmailSender"
+      ],
+      "solutionArchetypes": [
+        "POCO options class plus services.Configure plus IOptions injection plus ValidateDataAnnotations and ValidateOnStart",
+        "use IOptionsSnapshot<T> for scoped/per-request reload, IOptionsMonitor<T> when you need change notifications"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Design the public shape of an ASP.NET Core feature that needs three pieces of email configuration: SMTP host, SMTP port, and a from-address. Use the **options pattern** — no `IConfiguration` injection in the consuming services.\n\nShow:\n\n1. The POCO options class with appropriate validation attributes.\n2. The DI registration in `Program.cs`, including fail-fast validation at startup.\n3. A trivial `EmailSender` class that consumes the typed options.\n4. Briefly explain the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>` and which one your `EmailSender` should use.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/explain-idisposable-using",
+      "title": "Explain: IDisposable and the using statement",
+      "category": "explain",
+      "difficulty": "intermediate",
+      "language": "csharp",
+      "topics": [
+        "fundamentals",
+        "memory"
+      ],
+      "tags": [
+        "resource-management",
+        "idisposable"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "// Three ways to use a FileStream:\n\n// (1) raw — leaks on exception:\nvar fs1 = new FileStream(\"a.txt\", FileMode.Open);\nvar b1 = new byte[16];\nfs1.Read(b1, 0, 16);\nfs1.Dispose();\n\n// (2) classic using block:\nusing (var fs2 = new FileStream(\"a.txt\", FileMode.Open))\n{\n    var b2 = new byte[16];\n    fs2.Read(b2, 0, 16);\n}\n\n// (3) C# 8 using declaration:\nusing var fs3 = new FileStream(\"a.txt\", FileMode.Open);\nvar b3 = new byte[16];\nfs3.Read(b3, 0, 16);\n"
+      },
+      "expectedConcepts": [
+        "IDisposable signals \"this type holds an unmanaged or scoped resource that needs deterministic cleanup\"",
+        "using compiles to a try/finally where Dispose() is called even if an exception is thrown",
+        "GC alone is not sufficient because finalizers run non-deterministically and never for managed-only resources like locks or transactions",
+        "the C# 8 using declaration (`using var x = ...`) scopes Dispose to the enclosing block",
+        "common dispose-required types include FileStream, SqlConnection, HttpClient (with caveats), CancellationTokenSource"
+      ],
+      "schemaVersion": 2,
+      "instructions": "In 3-5 sentences, explain:\n\n1. What problem `IDisposable` solves that the garbage collector does not.\n2. Why version (1) is wrong even though it calls `Dispose()`.\n3. The practical difference between version (2) and version (3).",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/explain-nullable-reference-types",
+      "title": "Explain nullable reference types",
+      "category": "explain",
+      "difficulty": "intermediate",
+      "language": "csharp",
+      "topics": [
+        "typing",
+        "fundamentals"
+      ],
+      "tags": [
+        "nullability",
+        "nrt"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "#nullable enable\n\npublic string FullName(Customer c)\n{\n    return c.MiddleName + \" \" + c.LastName;\n}\n\npublic class Customer\n{\n    public string FirstName { get; set; } = \"\";\n    public string? MiddleName { get; set; }\n    public string LastName { get; set; } = \"\";\n}\n"
+      },
+      "expectedConcepts": [
+        "#nullable enable opts the file into nullable reference type analysis with CS86xx warnings",
+        "string and string? are different at compile time — string? is a \"may be null\" annotation the compiler propagates",
+        "the compiler warns inside FullName because c.MiddleName is string? being concatenated where a non-null reference was expected",
+        "the runtime CLR has no notion of nullable vs non-nullable strings — the entire feature is compile-time analysis",
+        "fix options include null-coalescing (c.MiddleName ?? string.Empty), a null-check guard, or the null-forgiving ! operator as a last resort"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The snippet has `#nullable enable` and a `MiddleName` declared as `string?`. In 3-5 sentences, explain:\n\n1. What `string?` adds to the type system that plain `string` does not.\n2. Where the compiler will emit a warning inside `FullName` and what that warning is telling you.\n3. The most appropriate fix to make `FullName` warning-free, and what `!` (the null-forgiving operator) would do if you used it instead.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/explain-records-vs-classes",
+      "title": "Explain records vs classes",
+      "category": "explain",
+      "difficulty": "beginner",
+      "language": "csharp",
+      "topics": [
+        "typing",
+        "fundamentals"
+      ],
+      "tags": [
+        "records",
+        "equality",
+        "value-types"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public class CustomerC\n{\n    public string Name { get; init; } = \"\";\n    public string Email { get; init; } = \"\";\n}\n\npublic record CustomerR(string Name, string Email);\n\nvar c1 = new CustomerC { Name = \"Ada\", Email = \"ada@x.com\" };\nvar c2 = new CustomerC { Name = \"Ada\", Email = \"ada@x.com\" };\nConsole.WriteLine(c1.Equals(c2)); // ?\n\nvar r1 = new CustomerR(\"Ada\", \"ada@x.com\");\nvar r2 = new CustomerR(\"Ada\", \"ada@x.com\");\nConsole.WriteLine(r1.Equals(r2)); // ?\n"
+      },
+      "expectedConcepts": [
+        "records get value-based Equals, GetHashCode, and ToString synthesized by the compiler",
+        "classes use reference equality by default, so c1.Equals(c2) prints False while r1.Equals(r2) prints True",
+        "records support nondestructive mutation via with expressions",
+        "positional record syntax generates init-only properties, a primary constructor, and Deconstruct",
+        "records are still reference types unless declared as record struct (C# 10 and later)"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Look at the snippet above. In 3-5 sentences, explain:\n\n1. What `r1.Equals(r2)` prints and why it differs from `c1.Equals(c2)`.\n2. **Two** other things the C# compiler synthesizes for a `record` declaration that you do not get for a regular class.\n3. When you would still reach for a regular `class` over a `record`.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/refactor-loops-to-linq",
+      "title": "Refactor imperative loops to LINQ",
+      "category": "refactor",
+      "difficulty": "intermediate",
+      "language": "csharp",
+      "topics": [
+        "collections",
+        "patterns"
+      ],
+      "tags": [
+        "linq",
+        "immutability"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public static List<string> ActiveCustomerEmails(IEnumerable<Customer> customers)\n{\n    var result = new List<string>();\n    foreach (var c in customers)\n    {\n        if (c.IsActive)\n        {\n            if (!result.Contains(c.Email))\n            {\n                result.Add(c.Email);\n            }\n        }\n    }\n    result.Sort();\n    return result;\n}\n\npublic record Customer(string Name, string Email, bool IsActive);\n"
+      },
+      "expectedConcepts": [
+        "filters with Where(c => c.IsActive)",
+        "projects with Select(c => c.Email)",
+        "dedupes with Distinct (or GroupBy when the dedupe key differs from the element)",
+        "sorts with OrderBy(e => e)",
+        "materializes once at the end with ToList — LINQ chains are deferred until enumerated",
+        "the chained version reads top-down as a data pipeline and is equivalent in behavior to the loop"
+      ],
+      "solutionArchetypes": [
+        "customers.Where filter then Select projection then Distinct then OrderBy then ToList"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Refactor `ActiveCustomerEmails` to a single LINQ chain that produces the same result: emails of active customers, deduplicated, sorted ascending.\n\nShow the rewritten method, then briefly (1-2 sentences) note one concrete tradeoff between the LINQ version and the imperative version — readability, debuggability, allocation, or performance for a particular input size.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/refactor-nested-conditionals",
+      "title": "Refactor nested conditionals with guard clauses",
+      "category": "refactor",
+      "difficulty": "beginner",
+      "language": "csharp",
+      "topics": [
+        "patterns",
+        "fundamentals"
+      ],
+      "tags": [
+        "guard-clauses",
+        "early-return"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public static decimal CalculateDiscount(Order order)\n{\n    if (order != null)\n    {\n        if (order.Items.Count > 0)\n        {\n            if (order.Customer.IsActive)\n            {\n                if (order.Total > 100)\n                {\n                    return order.Total * 0.10m;\n                }\n                else\n                {\n                    return 0m;\n                }\n            }\n            else\n            {\n                return 0m;\n            }\n        }\n        else\n        {\n            return 0m;\n        }\n    }\n    else\n    {\n        throw new ArgumentNullException(nameof(order));\n    }\n}\n"
+      },
+      "expectedConcepts": [
+        "replace nested ifs with early-return guard clauses",
+        "the happy path becomes a single, un-indented flow at the bottom of the method",
+        "validation/short-circuit conditions move to the top, each with its own return",
+        "the refactored method is easier to scan and easier to add new validations to",
+        "bonus — the result is a candidate for switch expressions or pattern matching for the success cases"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Refactor `CalculateDiscount` using **guard clauses**: early returns for the rejection cases and a single un-indented happy path at the bottom. The behavior must be identical:\n\n- `null` order → `ArgumentNullException`,\n- empty items → `0m`,\n- inactive customer → `0m`,\n- total ≤ 100 → `0m`,\n- otherwise → 10% of total.\n\nBriefly explain why the guard-clause version is easier to extend (e.g. when product asks you to add a \"VIP customer always gets 15%\" rule).",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/security-sql-injection",
+      "title": "Identify the security issue: SQL injection in ADO.NET",
+      "category": "security",
+      "difficulty": "intermediate",
+      "language": "csharp",
+      "topics": [
+        "security",
+        "fundamentals"
+      ],
+      "tags": [
+        "sql-injection",
+        "ado-net"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public User? FindUserByEmail(string email)\n{\n    using var connection = new SqlConnection(_connectionString);\n    connection.Open();\n\n    var sql = \"SELECT Id, Name FROM Users WHERE Email = '\" + email + \"'\";\n    using var command = new SqlCommand(sql, connection);\n\n    using var reader = command.ExecuteReader();\n    if (!reader.Read()) return null;\n    return new User(reader.GetGuid(0), reader.GetString(1));\n}\n"
+      },
+      "expectedConcepts": [
+        "the email value is concatenated into the SQL string verbatim — classic SQL injection",
+        "an attacker submits an email like `' OR '1'='1` and the query returns every row",
+        "more dangerous payloads can drop tables, exfiltrate data, or chain statements",
+        "the fix is parameterized queries — SqlCommand.Parameters.AddWithValue (or, better, .Add with an explicit SqlDbType + Size)",
+        "never trust user input concatenated into a SQL string, even if the input \"looks safe\""
+      ],
+      "schemaVersion": 2,
+      "instructions": "The method above looks up a user by email and is vulnerable to a classic, well-known attack.\n\n1. Name the vulnerability.\n2. Provide a concrete attack payload (a string that an attacker could submit as `email`) and describe the resulting query and what it returns.\n3. Rewrite `FindUserByEmail` to be safe. Prefer `.Parameters.Add(...)` with an explicit type and size over `AddWithValue`, and explain in one sentence why.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/tests-arrange-act-assert",
+      "title": "Identify missing tests for a money formatter",
+      "category": "tests",
+      "difficulty": "beginner",
+      "language": "csharp",
+      "topics": [
+        "testing",
+        "fundamentals"
+      ],
+      "tags": [
+        "xunit",
+        "edge-cases",
+        "naming"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "csharp",
+        "code": "public static string FormatUsd(decimal amount)\n{\n    if (amount < 0) return \"-\" + FormatUsd(-amount);\n    return amount.ToString(\"C2\", new CultureInfo(\"en-US\"));\n}\n\n// Existing test (xUnit):\n[Fact]\npublic void FormatUsd_PositiveDecimal_ReturnsDollarString()\n{\n    Assert.Equal(\"$1,234.56\", FormatUsd(1234.56m));\n}\n"
+      },
+      "expectedConcepts": [
+        "covers a negative amount such as -50m producing a leading minus before the dollar sign",
+        "covers zero producing $0.00",
+        "covers a whole-number value (1000m) producing $1,000.00 with a thousands separator",
+        "covers a small fractional value that exercises rounding to two decimals",
+        "uses descriptive test names in Method_State_ExpectedResult form so a failing test self-describes",
+        "groups arrange/act/assert visibly per test or uses Theory/InlineData for parameterized cases"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Below is the `FormatUsd` method and its only existing test. The single test does not exercise enough behavior. Identify **at least five** distinct behaviors that are not covered, and for each propose a concrete xUnit test.\n\nYou don't need to write the full assertion boilerplate for each — `FormatUsd(input) → expected` plus a short test name is enough. **Name** each test clearly so a reader can tell from the failure line what regressed.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/write-async-retry",
+      "title": "Write a function: async RetryAsync helper",
+      "category": "write",
+      "difficulty": "intermediate",
+      "language": "csharp",
+      "topics": [
+        "async",
+        "patterns"
+      ],
+      "tags": [
+        "retry",
+        "exponential-backoff"
+      ],
+      "expectedConcepts": [
+        "generic Func<Task<T>> input so it works for any async return type",
+        "retries up to maxAttempts (typically 3) on any exception (or a configurable predicate)",
+        "delays between attempts using Task.Delay with exponential backoff (e.g. 100ms, 200ms, 400ms)",
+        "respects a CancellationToken — passes it to Task.Delay and bails out if cancelled",
+        "rethrows the last exception (or wraps it) once retries are exhausted"
+      ],
+      "solutionArchetypes": [
+        "for loop from 0..maxAttempts-1, try { return await action(); } catch (Exception ex) when (i < maxAttempts - 1) { await Task.Delay(...) }"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Write a static helper:\n\n```csharp\npublic static Task<T> RetryAsync<T>(\n    Func<Task<T>> action,\n    int maxAttempts = 3,\n    CancellationToken cancellationToken = default);\n```\n\nBehavior:\n\n- Calls `action()` up to `maxAttempts` times.\n- On any exception, waits with exponential backoff (e.g. 100ms × 2^attempt) and retries.\n- Returns the result on first success.\n- Rethrows the most recent exception if all attempts fail.\n- Honors `cancellationToken` between attempts and during the delay.\n\nDon't pull in Polly or any other library — this is a from-scratch exercise. Briefly note one limitation of your implementation that would matter in production.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    },
+    {
+      "id": "csharp-fundamentals/write-csv-row-builder",
+      "title": "Write a function: build a CSV row efficiently",
+      "category": "write",
+      "difficulty": "beginner",
+      "language": "csharp",
+      "topics": [
+        "performance",
+        "fundamentals"
+      ],
+      "tags": [
+        "stringbuilder",
+        "immutability"
+      ],
+      "expectedConcepts": [
+        "uses StringBuilder rather than string concatenation in a loop",
+        "reason: strings are immutable in .NET, so += inside a loop allocates a new string each iteration (quadratic total work)",
+        "separates fields with a single comma and produces no trailing comma",
+        "quotes fields that contain a comma, double-quote, or newline by wrapping in double-quotes and doubling internal quotes",
+        "string.Join with a Select-and-escape projection is acceptable for the simple case; StringBuilder is the natural choice when escaping is needed"
+      ],
+      "solutionArchetypes": [
+        "foreach over fields with StringBuilder.Append, comma between iterations, escape per field",
+        "string.Join(\",\" , values.Select(Escape)) where Escape returns the field unchanged or wrapped + doubled"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Write `BuildCsvRow(IReadOnlyList<string> fields)` that returns a single CSV row.\n\nRequirements:\n\n- Fields are separated by commas; no trailing comma.\n- A field containing a comma, double-quote, or newline must be wrapped in double-quotes; any embedded double-quote must be doubled (`Hi, \"Ada\"` becomes `\"Hi, \"\"Ada\"\"\"`).\n- The method may be called with hundreds of fields per row — avoid quadratic allocation in the field loop.\n\nShow the implementation and briefly note (1-2 sentences) why a naive `result += field + \",\"` inside a `foreach` would be the wrong approach.",
+      "packId": "csharp-fundamentals",
+      "packVersion": "0.2.0"
+    }
+  ]
+}
