@@ -6,12 +6,17 @@
   },
   "js-fundamentals": {
     "title": "JavaScript Fundamentals",
-    "description": "Vanilla JavaScript practice: this binding, closures, deep cloning, async refactors, testing pure functions.",
-    "packVersion": "0.1.0"
+    "description": "Vanilla JavaScript practice: this binding, closures, deep cloning, async refactors, testing pure functions, array-method idioms.",
+    "packVersion": "0.2.0"
   },
   "csharp-fundamentals": {
     "title": "C# Fundamentals",
     "description": "C# practice across typing, async, collections, performance, testing, refactoring, security, architecture, and a11y.",
     "packVersion": "0.2.0"
+  },
+  "ts-rxjs": {
+    "title": "TypeScript: RxJS Operators",
+    "description": "Reactive programming practice: pipe, common operators (map/filter/switchMap/debounceTime), subjects, multicasting, error recovery, and unsubscription discipline.",
+    "packVersion": "0.1.0"
   }
 }

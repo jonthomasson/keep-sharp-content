@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-30T03:56:35.091Z",
-  "catalogVersion": "2026.04.30",
+  "generatedAt": "2026-05-14T15:18:00.761Z",
+  "catalogVersion": "2026.05.14",
   "challengeSchemaVersions": [
     2
   ],
@@ -57,18 +57,19 @@
     {
       "id": "js-fundamentals",
       "title": "JavaScript Fundamentals",
-      "description": "Vanilla JavaScript practice: this binding, closures, deep cloning, async refactors, testing pure functions.",
-      "url": "packs/js-fundamentals@0.1.0.json",
-      "sizeBytes": 8566,
-      "sha256": "59dc2001dce5e69c1c773238b55a1ab02ea821c73cfa65b7956cc5bbde87bffb",
-      "challengeCount": 5,
+      "description": "Vanilla JavaScript practice: this binding, closures, deep cloning, async refactors, testing pure functions, array-method idioms.",
+      "url": "packs/js-fundamentals@0.2.0.json",
+      "sizeBytes": 21633,
+      "sha256": "eef050fea8c4376c0e504582739227e7bf6560ac99a7e555efe2323a1540d402",
+      "challengeCount": 11,
       "schemaVersion": 2,
-      "packVersion": "0.1.0",
+      "packVersion": "0.2.0",
       "languages": [
         "javascript"
       ],
       "topics": [
         "async",
+        "collections",
         "control-flow",
         "fundamentals",
         "immutability",
@@ -130,6 +131,41 @@
         "refactor",
         "security",
         "tests",
+        "write"
+      ]
+    },
+    {
+      "id": "ts-rxjs",
+      "title": "TypeScript: RxJS Operators",
+      "description": "Reactive programming practice: pipe, common operators (map/filter/switchMap/debounceTime), subjects, multicasting, error recovery, and unsubscription discipline.",
+      "url": "packs/ts-rxjs@0.1.0.json",
+      "sizeBytes": 16014,
+      "sha256": "c5cf77f7b42076b81a969a8ed83ea6c4b3224bce41e84287aad7cad556e76f6d",
+      "challengeCount": 6,
+      "schemaVersion": 2,
+      "packVersion": "0.1.0",
+      "languages": [
+        "typescript"
+      ],
+      "topics": [
+        "architecture",
+        "async",
+        "fundamentals",
+        "memory",
+        "patterns",
+        "reactive",
+        "state-management"
+      ],
+      "difficulties": [
+        "advanced",
+        "beginner",
+        "intermediate"
+      ],
+      "categories": [
+        "architecture",
+        "debug",
+        "explain",
+        "refactor",
         "write"
       ]
     }

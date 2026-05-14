@@ -1,9 +1,14 @@
 ---
 description: Generate a varied pack of Keep Sharp challenges for a given language, drafting frontmatter + body for each, writing them under content/, and validating.
-argument-hint: "[language] [count]"
+argument-hint: "[language] [count] [--pack <id>] [--topic <slug>] [--lib <name>]"
 ---
 
-You are bulk-authoring a pack of Keep Sharp challenges. Arguments: `$ARGUMENTS` (first token = language slug, optional second token = challenge count; default 6).
+You are bulk-authoring a pack of Keep Sharp challenges. Arguments: `$ARGUMENTS`.
+
+- **Positional**: first token = language slug, optional second token = challenge count (default 6).
+- **`--pack <id>`** (optional): target a specific pack id (e.g. `ts-rxjs`, `js-arrays`). If omitted, defaults to `<lang>-fundamentals`.
+- **`--topic <slug>`** (optional): narrow the pack's topical focus (e.g. `reactive`, `collections`). Used to bias category/topic selection in Step 2 and to default the content subdirectory.
+- **`--lib <name>`** (optional, repeatable): runtime npm package the challenges depend on (e.g. `--lib rxjs`, `--lib zod`). Triggers the library-dependency convention in Steps 2–3.
 
 Read this whole file before doing anything. The constraints come from the schema, not from convention — the validator will reject anything that drifts.
 
@@ -14,25 +19,39 @@ Read this whole file before doing anything. The constraints come from the schema
    - If `$ARGUMENTS` provides a language token, use it. Otherwise list `tools/languages.txt` to the user and ask which one.
    - If the chosen language is not in `tools/languages.txt`, ask whether to add it. If yes, append it (one slug per line, alphabetized, blank line at EOF preserved).
 3. **Count**: take from `$ARGUMENTS` if present; otherwise default to 6. Cap at 10 unless the user explicitly asks for more.
-4. **Pack scope**:
-   - If a pack already keys into `tools/packs.json` matching the language (e.g. `python-fundamentals` for `python`), default to extending it. Confirm with the user.
-   - Otherwise propose a new pack id (default `<lang>-fundamentals`), title (e.g. `Python Fundamentals`), description (one sentence), and `packVersion: "0.1.0"`. Add the entry to `tools/packs.json`.
-5. **Existing content**: list `content/<language>/**/*.md` so you don't duplicate `id`s, titles, or topic angles.
+4. **Pack scope** — branch on `--pack`:
+   1. **`--pack <id>` provided AND id exists in `tools/packs.json`** → extend that pack. Bump `packVersion` minor (`0.1.0 → 0.2.0`, `0.2.0 → 0.3.0`). Confirm the bump with the user once. Use it for adding focused challenges to an existing pack (e.g. `--pack js-fundamentals` to add array-method challenges to the JS fundamentals pack).
+   2. **`--pack <id>` provided AND id is new** → propose a new entry: title (Title Case, e.g. `TypeScript: RxJS Operators`), one-sentence description, `packVersion: "0.1.0"`. Add it to `tools/packs.json`. Use it for topic-focused or library-focused packs (e.g. `ts-rxjs`, `ts-react-patterns`, `js-arrays`).
+   3. **No `--pack` provided** → look for `<lang>-fundamentals` in `tools/packs.json`. If it exists, default to extending it (confirm + bump as in branch 1). Otherwise propose creating it (default id `<lang>-fundamentals`, title e.g. `Python Fundamentals`, `packVersion: "0.1.0"`).
+5. **Existing content** — avoid duplicate `id`s, titles, and topic angles:
+   - List `content/<language>/**/*.md` (broad language-level view).
+   - Additionally, list every file whose frontmatter `id` starts with `<packId>/` — this is the authoritative dupe-check for an existing pack, since challenges may live across multiple topic subdirectories.
+   - When extending, summarize the existing pack's category/difficulty/topic spread back to the user so the new set complements rather than overlaps.
 
 ## Step 2 — propose the set
 
-Before writing any files, draft a numbered table of the planned challenges with: `id`, `title`, `category`, `difficulty`, `topic(s)`. Aim for variety:
+Before writing any files, draft a numbered table of the planned challenges with: `id`, `title`, `category`, `difficulty`, `topic(s)`, and (when `--lib` was passed) the `lib` dependency. Aim for variety:
 
-- **Categories** (pick from): `explain` `debug` `write` `refactor` `tests` `security` `a11y` `architecture` `design`. Use at least 4 different categories across the set.
+- **Categories** (pick from): `explain` `debug` `write` `refactor` `tests` `security` `a11y` `architecture` `design`. Use at least 4 different categories across the set. For a focused pack (e.g. `ts-rxjs`), narrow the category mix to what makes sense — RxJS suits `write`/`refactor`/`debug`/`architecture` more than `a11y`.
 - **Difficulty mix**: roughly 50% beginner, 33% intermediate, 17% advanced. Don't make everything beginner.
-- **Topics**: spread across `tools/topics.txt`. Avoid putting two challenges on the same topic unless the count > 6. If a topic you want is missing, add it to `tools/topics.txt` (one slug per line) and mention it in the proposal.
+- **Topics**: spread across `tools/topics.txt`. Avoid putting two challenges on the same topic unless the count > 6. If a topic you want is missing, add it to `tools/topics.txt` (one slug per line, alphabetized) and mention it in the proposal. For a focused pack, the `--topic` argument should anchor most challenges to that topic; secondary topics still help diversify.
 - **Real-world flavor**: each challenge should map to a thing the language is actually used for. No contrived "FizzBuzz with extra steps."
+- **Library/framework dependencies**: when `--lib <name>` was provided (or you notice the challenges need a runtime package), call it out explicitly in a `lib` column. The author / user needs to know what `npm install` they must run in their scratch dir before the challenge can be executed.
 
 Show the table to the user briefly so they can redirect (auto mode: proceed if they don't push back within the same turn — but pause if the proposal looks weak or you need a judgment call).
 
 ## Step 3 — write each challenge file
 
-One file per challenge at `content/<language>/<topic>/<slug>.md`. The `<slug>` matches the second half of the `id`.
+One file per challenge at `content/<language>/<topic>/<slug>.md`. The `<slug>` matches the second half of the `id`. When `--topic` was provided and the pack is focused on it, prefer `content/<language>/<topic>/` as the default subdirectory for the whole set (e.g. RxJS challenges → `content/typescript/reactive/`).
+
+### Library-dependent challenges
+
+When the pack needs a runtime npm package (e.g. `rxjs`, `zod`, `lodash`):
+
+- **In the starter code**: import from the package as usual (`import { ... } from 'rxjs'`) and include a one-line comment at the top documenting the install: `// Setup: npm install rxjs`.
+- **In the rendered body** (after the closing `---`): add a short **Setup** callout near the top, e.g.:
+  > **Setup:** This challenge imports from `rxjs`. In your scratch directory, run `npm install rxjs` once. The TypeScript runner (`npx -y tsx`) resolves it from `node_modules`.
+- **Schema note**: there is no `runtime` field in the schema today. Don't invent one. The starter comment + body callout are the convention; if a real `runtime` field gets added later, migrate then.
 
 ### Frontmatter shape (from `tools/schema.ts`)
 
@@ -122,7 +141,7 @@ Stage **only** the files this command produced — never `git add -A` or `git ad
 
 - `content/<language>/**/*.md` — the new challenges
 - `tools/packs.json` — if a new pack was added or `packVersion` was bumped
-- `tools/languages.txt` / `tools/topics.txt` / `tools/frameworks.txt` — only if you appended
+- `tools/languages.txt` / `tools/topics.txt` / `tools/frameworks.txt` — only if you appended (topic-focused or library-focused packs frequently need a new `topics.txt` slug — don't forget this one)
 - `dist/manifest.json` and `dist/packs/*.json` — the rebuilt catalog
 
 Then commit with a HEREDOC message:

@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 2,
+  "packId": "ts-rxjs",
+  "packVersion": "0.1.0",
+  "challenges": [
+    {
+      "id": "ts-rxjs/architecture-state-via-behaviorsubject",
+      "title": "Architect a small store with BehaviorSubject",
+      "category": "architecture",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "reactive",
+        "state-management",
+        "architecture"
+      ],
+      "tags": [
+        "rxjs",
+        "behaviorsubject",
+        "store",
+        "selectors"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Setup: npm install rxjs\nimport { Observable } from 'rxjs';\n\ninterface CartState {\n  items: { id: string; qty: number; price: number }[];\n  isCheckoutOpen: boolean;\n}\n\n// Design a small cart store. Fill in the implementation.\n\nclass CartStore {\n  // exposes:\n  //   state$: Observable<CartState>          — current full state, emits on every change\n  //   itemCount$: Observable<number>         — derived selector, only emits when count actually changes\n  //   total$: Observable<number>             — derived selector, only emits when total actually changes\n  //\n  // methods:\n  //   addItem(item: { id; qty; price }): void\n  //   removeItem(id: string): void\n  //   openCheckout(): void\n  //   closeCheckout(): void\n}\n"
+      },
+      "expectedConcepts": [
+        "use a private BehaviorSubject<CartState> for the source of truth — BehaviorSubject (not Subject) is required so new subscribers immediately get the current value",
+        "expose state$ as .asObservable() so external callers cannot call .next() directly — encapsulation",
+        "all mutations go through methods that read the current value (.value or .getValue()), produce a new immutable state, and call .next(newState) — never mutate the existing items array in place",
+        "derived selectors (itemCount$, total$) are state$.pipe(map(...), distinctUntilChanged()) — distinctUntilChanged is what makes them \"only emit on change\"",
+        "why BehaviorSubject over plain Subject: late subscribers must get the current state immediately, not have to wait for the next change",
+        "avoid emitting reference-equal-but-mutated objects from .next() — selectors compare with === by default and will not emit if the reference is unchanged"
+      ],
+      "solutionArchetypes": [
+        "private state = new BehaviorSubject<CartState>(initial); public state$ = this.state.asObservable()",
+        "addItem produces a new items array (spread) and calls state.next({ ...state.value, items: newItems })",
+        "itemCount$ = state$.pipe(map(s => s.items.reduce((n, i) => n + i.qty, 0)), distinctUntilChanged())"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Design the `CartStore` class above. Your implementation should expose the listed observables and methods, with these properties:\n\n- The current state is always available to a new subscriber the moment it subscribes (no waiting for the next action).\n- Outside callers can subscribe to state but cannot push values into it.\n- `itemCount$` and `total$` only emit when their value actually changes, even if `state$` emits with the checkout flag toggled (and item count unchanged).\n- Mutations produce a **new** state object — `items` is never mutated in place.\n\nWrite the class. Then briefly (1-2 sentences) explain **why a `BehaviorSubject` is required here and a plain `Subject` would not work** for the source of truth.",
+      "packId": "ts-rxjs",
+      "packVersion": "0.1.0"
+    },
+    {
+      "id": "ts-rxjs/debug-leaking-subscription",
+      "title": "Find the bug: leaking subscription in a component",
+      "category": "debug",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "reactive",
+        "memory"
+      ],
+      "tags": [
+        "rxjs",
+        "unsubscribe",
+        "takeUntil",
+        "lifecycle"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Setup: npm install rxjs\nimport { interval, Subscription } from 'rxjs';\n\n// Imagine this is a UI component class. It \"mounts\" via init() and \"unmounts\" via destroy().\nclass TickerWidget {\n  private currentTick = 0;\n\n  init() {\n    // poll every second forever\n    interval(1000).subscribe((n) => {\n      this.currentTick = n;\n      console.log('tick', n);\n    });\n  }\n\n  destroy() {\n    // teardown — but the subscription above is still running\n  }\n}\n\nconst w = new TickerWidget();\nw.init();\nsetTimeout(() => w.destroy(), 3500);\n// ticks keep logging after destroy() — leak.\n"
+      },
+      "expectedConcepts": [
+        "the bug: subscribe(...) returns a Subscription, but it is discarded — destroy() has no handle to unsubscribe",
+        "the underlying interval keeps emitting forever, the closure keeps the component alive, and listeners keep firing — classic leak that scales with mount/unmount churn",
+        "fix option 1: store the Subscription on the instance and call .unsubscribe() in destroy()",
+        "fix option 2: use takeUntil with a destroy$ Subject — pipe the source through takeUntil(this.destroy$), then in destroy() call this.destroy$.next() and .complete()",
+        "fix option 3: an Subscription \"parent\" that .add()s children — single .unsubscribe() in destroy() tears them all down",
+        "takeUntil is preferred when there are many streams to manage in the same component because the cleanup is uniform"
+      ],
+      "solutionArchetypes": [
+        "store sub in this.sub = interval(1000).subscribe(...); destroy() calls this.sub?.unsubscribe()",
+        "use a destroy$ = new Subject<void>() — interval(1000).pipe(takeUntil(this.destroy$)).subscribe(...) — destroy() emits and completes destroy$"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The `TickerWidget` above leaks: after `destroy()` runs, the `interval` keeps emitting and `currentTick` keeps updating, and the component is held in memory by the subscription closure.\n\n1. Explain in 1-2 sentences why the leak happens — what RxJS rule was broken?\n2. Show the fix using `takeUntil` + a `destroy$` `Subject`. Wire it into `init()` and `destroy()` properly.\n3. In 1 sentence: when would you prefer manually storing the `Subscription` and calling `.unsubscribe()` instead of the `takeUntil` pattern?",
+      "packId": "ts-rxjs",
+      "packVersion": "0.1.0"
+    },
+    {
+      "id": "ts-rxjs/explain-cold-vs-hot",
+      "title": "Explain: cold vs hot observables",
+      "category": "explain",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "reactive",
+        "fundamentals"
+      ],
+      "tags": [
+        "rxjs",
+        "observables",
+        "multicasting"
+      ],
+      "expectedConcepts": [
+        "cold observables produce a fresh execution per subscriber — each subscriber gets its own values from the start (e.g. http.get, of, interval before share)",
+        "hot observables share a single underlying execution among all subscribers — late subscribers miss earlier values (e.g. Subject, fromEvent on a DOM node)",
+        "the cold-to-hot conversion is multicasting, typically via share(), shareReplay(), or wrapping in a Subject",
+        "implication for HTTP calls — re-subscribing to a cold http observable re-fires the request, which is usually NOT what you want for a \"load once and reuse\" flow",
+        "shareReplay({ bufferSize: 1, refCount: true }) is the common idiom for \"make an HTTP observable hot but unsubscribe-clean\""
+      ],
+      "schemaVersion": 2,
+      "instructions": "In 3-5 sentences, explain the difference between **cold** and **hot** observables in RxJS:\n\n1. What changes from the subscriber's perspective when you subscribe to a cold observable twice vs. a hot one?\n2. Give one concrete RxJS source for each (cold and hot).\n3. How do you convert a cold observable into a hot one, and what's the typical operator + config you'd reach for in a \"fetch once, share with many subscribers, clean up when nobody's listening\" scenario?",
+      "packId": "ts-rxjs",
+      "packVersion": "0.1.0"
+    },
+    {
+      "id": "ts-rxjs/refactor-nested-subscribes-to-switchmap",
+      "title": "Refactor nested subscribes to switchMap",
+      "category": "refactor",
+      "difficulty": "intermediate",
+      "language": "typescript",
+      "topics": [
+        "reactive",
+        "async"
+      ],
+      "tags": [
+        "rxjs",
+        "switchmap",
+        "operators"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Setup: npm install rxjs\nimport { Observable } from 'rxjs';\n\ndeclare function fetchUser(id: string): Observable<{ id: string; teamId: string }>;\ndeclare function fetchTeam(teamId: string): Observable<{ id: string; name: string }>;\n\nfunction loadUserTeam(userId: string, onResult: (team: { id: string; name: string }) => void) {\n  fetchUser(userId).subscribe((user) => {\n    fetchTeam(user.teamId).subscribe((team) => {\n      onResult(team);\n    });\n  });\n}\n"
+      },
+      "expectedConcepts": [
+        "nested subscribes break composability — the outer stream cannot be observed, errored, or unsubscribed as a single pipeline",
+        "switchMap takes each outer value, maps it to a new inner Observable, and cancels any previous in-flight inner on a new outer emission",
+        "the refactored function should RETURN an Observable<Team>, not take an onResult callback — the caller subscribes (or pipes it further)",
+        "errors from either fetchUser or fetchTeam now propagate to the single outer subscription instead of being silently dropped on the inner",
+        "switchMap is the right operator here because each new userId should cancel the prior in-flight team fetch — mergeMap would race, concatMap would queue, exhaustMap would ignore"
+      ],
+      "solutionArchetypes": [
+        "fetchUser(userId).pipe(switchMap(user => fetchTeam(user.teamId)))",
+        "return the piped Observable directly; let the caller subscribe"
+      ],
+      "schemaVersion": 2,
+      "instructions": "The function above subscribes to `fetchUser`, then inside that callback subscribes to `fetchTeam`. This \"callback inside callback\" is the RxJS equivalent of nested promises — composability and cancellation are lost.\n\nRefactor `loadUserTeam` to:\n\n1. Return an `Observable<{ id: string; name: string }>` instead of taking an `onResult` callback.\n2. Use `switchMap` to chain the two requests into a single pipeline.\n3. Eliminate the inner `.subscribe`.\n\nThen in 1-2 sentences, explain why `switchMap` (rather than `mergeMap`, `concatMap`, or `exhaustMap`) is the right choice when the outer source is \"the user clicked or the route changed.\"",
+      "packId": "ts-rxjs",
+      "packVersion": "0.1.0"
+    },
+    {
+      "id": "ts-rxjs/write-debounced-search",
+      "title": "Write a debounced search stream",
+      "category": "write",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "topics": [
+        "reactive",
+        "async"
+      ],
+      "tags": [
+        "rxjs",
+        "debounceTime",
+        "switchMap",
+        "distinctUntilChanged"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Setup: npm install rxjs\nimport { Observable } from 'rxjs';\n\n// Given:\ndeclare const keystrokes$: Observable<string>; // emits the current input value on every keystroke\ndeclare function searchApi(q: string): Observable<string[]>; // returns search results\n\n// Build: results$ — emits the search results for the latest user input,\n// but only fires the API call after the user pauses typing,\n// and only if the query actually changed.\n\nconst results$: Observable<string[]> = /* your code here */;\n"
+      },
+      "expectedConcepts": [
+        "debounceTime(N) waits for N ms of silence before forwarding the latest value — typical UI value is 250–400 ms",
+        "distinctUntilChanged drops duplicate consecutive emissions so identical queries (e.g. user types and erases the same char) do not re-fire the API",
+        "switchMap maps each query to a fresh searchApi observable AND cancels any in-flight previous request — critical for search-as-you-type to avoid out-of-order results",
+        "usually trim the query and filter out empty strings before the switchMap, or short-circuit to of([]) in the switchMap to avoid hammering the API with empty queries",
+        "the order of operators matters — debounce before distinctUntilChanged before switchMap is the canonical pipeline"
+      ],
+      "solutionArchetypes": [
+        "keystrokes$.pipe(debounceTime(300), distinctUntilChanged(), switchMap(q => q.trim() ? searchApi(q.trim()) : of([])))"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Build `results$` from the given `keystrokes$` and `searchApi` so that it behaves like a normal search-as-you-type box:\n\n- Only fire `searchApi` after the user pauses typing for ~300 ms.\n- Don't re-fire if the (trimmed) query is identical to the previous one.\n- If the user keeps typing, the *previous* in-flight request should be cancelled, not awaited.\n- An empty query should emit `[]` without hitting the API.\n\nUse `pipe` with the appropriate RxJS operators. Briefly: what would go wrong if you used `mergeMap` instead of `switchMap` here?",
+      "packId": "ts-rxjs",
+      "packVersion": "0.1.0"
+    },
+    {
+      "id": "ts-rxjs/write-retry-with-backoff",
+      "title": "Write: retry with exponential backoff",
+      "category": "write",
+      "difficulty": "advanced",
+      "language": "typescript",
+      "topics": [
+        "reactive",
+        "async",
+        "patterns"
+      ],
+      "tags": [
+        "rxjs",
+        "retry",
+        "backoff",
+        "error-handling"
+      ],
+      "starter": {
+        "kind": "single",
+        "language": "typescript",
+        "code": "// Setup: npm install rxjs\nimport { Observable } from 'rxjs';\n\ndeclare function flakyHttpCall(): Observable<string>; // fails ~50% of the time with an Error\n\n// Build a pipeline that retries flakyHttpCall up to 3 times,\n// waiting 100ms, then 200ms, then 400ms between attempts.\n// After 3 failures, the final error should propagate to the subscriber.\n\nconst result$: Observable<string> = /* your code here */;\n"
+      },
+      "expectedConcepts": [
+        "use the modern retry({ count, delay }) overload — delay is a function (error, retryIndex) => Observable that defers the next attempt",
+        "compute the backoff as 100 * Math.pow(2, retryIndex - 1) — retryIndex is 1-based for the first retry",
+        "use rxjs.timer(ms) inside the delay function to produce the wait observable — do NOT use setTimeout",
+        "set count to 3 so the original attempt + 3 retries = 4 total attempts; after that the error propagates",
+        "consider filtering which errors are retryable — e.g. only retry network/5xx, not 4xx — by throwing the error from the delay function to bail early"
+      ],
+      "solutionArchetypes": [
+        "flakyHttpCall().pipe(retry({ count: 3, delay: (_err, i) => timer(100 * Math.pow(2, i - 1)) }))",
+        "classic retryWhen approach is also acceptable but deprecated since RxJS 7 — flag if used"
+      ],
+      "schemaVersion": 2,
+      "instructions": "Implement `result$` so that:\n\n1. `flakyHttpCall()` is invoked.\n2. If it errors, retry up to **3 times** with delays of **100 ms, 200 ms, 400 ms** between attempts (exponential backoff).\n3. After 3 failed retries, the final error propagates to the subscriber unchanged.\n4. On a successful attempt, emit the value and complete.\n\nUse the modern `retry({ count, delay })` operator (RxJS 7+). Briefly note what you'd add to skip retries for non-retryable errors (e.g. HTTP 4xx).",
+      "packId": "ts-rxjs",
+      "packVersion": "0.1.0"
+    }
+  ]
+}
